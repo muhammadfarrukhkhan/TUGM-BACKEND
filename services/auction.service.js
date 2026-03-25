@@ -6,10 +6,10 @@ const { AccountModel } = require("../models/account.model");
 
 const createAuction = async (req, res) => {
   try {
-    const { streamId, title, description, productId, startingBid, duration, suddenDeath } = req.body;
+    const { streamId, productId, startingBid, duration, suddenDeath } = req.body;
 
-    if (!streamId || !title || !startingBid || !duration) {
-      return res.status(400).json({ error: "streamId, title, startingBid and duration are required" });
+    if (!streamId || !startingBid || !duration) {
+      return res.status(400).json({ error: "streamId, startingBid and duration are required" });
     }
 
     const stream = await LiveStream.findById(streamId);
@@ -31,8 +31,6 @@ const createAuction = async (req, res) => {
 
     const auction = new Auction({
       streamId,
-      title,
-      description,
       productId,
       startingBid: Number(startingBid),
       currentBid: Number(startingBid),

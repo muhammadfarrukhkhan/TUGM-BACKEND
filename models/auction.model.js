@@ -7,15 +7,6 @@ const AuctionSchema = new mongoose.Schema({
     required: true,
   },
 
-  title: {
-    type: String,
-    required: true,
-  },
-
-  description: {
-    type: String,
-  },
-
   productId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Product",
