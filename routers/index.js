@@ -21,7 +21,7 @@ combineRouter.use("/transaction/history",require("./transactionHistory.router"))
 combineRouter.use("/battle",require("./battle.router"))
 combineRouter.use("/chat",require("./chat.router"))
 combineRouter.use("/post",require("./post.router"))
-
+combineRouter.use("/auction",require("./auction.router"))
 
 
 
