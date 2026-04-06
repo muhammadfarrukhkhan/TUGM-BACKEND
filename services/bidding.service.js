@@ -17,6 +17,7 @@ const getAllBidding = async (req, res) => {
 const getBiddingsByAuctionAndStream = async (req, res) => {
     try {
         const { auctionId, streamId } = req.query;
+        console.log(auctionId, streamId, 'auction and stream id')
 
         if (!auctionId || !streamId) {
             return res.status(400).json({ error: "Both auctionId and streamId are required" });

@@ -4,69 +4,185 @@ const Bidding = require("../models/bidding.model");
 const { emitToUser } = require("../config/socket.config");
 const { AccountModel } = require("../models/account.model");
 
+const mongoose = require("mongoose");
+
+
 const createAuction = async (req, res) => {
   try {
     const { streamId, productId, startingBid, duration, suddenDeath } = req.body;
 
+    console.log("CREATE AUCTION BODY:", req.body);
+
+    // -----------------------------
+    // 1️⃣ Validate Inputs
+    // -----------------------------
     if (!streamId || !startingBid || !duration) {
-      return res.status(400).json({ error: "streamId, startingBid and duration are required" });
+      return res.status(400).json({
+        success: false,
+        error: "streamId, startingBid and duration are required"
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(streamId)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid streamId"
+      });
     }
 
     const stream = await LiveStream.findById(streamId);
     if (!stream) {
-      return res.status(404).json({ error: "Stream not found" });
+      return res.status(404).json({ success: false, error: "Stream not found" });
     }
 
     if (stream.status !== "LIVE") {
-      return res.status(400).json({ error: "Stream is not live" });
+      return res.status(400).json({
+        success: false,
+        error: `Stream is not live. Current status: ${stream.status}`
+      });
     }
 
-    const startTime = new Date();
+    const bid = Number(startingBid);
     const durationSeconds = Number(duration);
-    if (isNaN(durationSeconds) || durationSeconds <= 0) {
-      return res.status(400).json({ error: "duration must be a positive number (in seconds)" });
+
+    if (isNaN(bid) || bid <= 0) {
+      return res.status(400).json({ success: false, error: "startingBid must be positive" });
     }
 
+    if (isNaN(durationSeconds) || durationSeconds <= 0) {
+      return res.status(400).json({ success: false, error: "duration must be positive seconds" });
+    }
+
+    // -----------------------------
+    // 2️⃣ Close Existing Active Auction
+    // -----------------------------
+    const existingAuction = await Auction.findOne({ streamId, status: "ACTIVE" });
+
+    if (existingAuction) {
+      console.log("Closing existing auction:", existingAuction._id);
+
+      const highestBid = await Bidding.findOne({ auctionId: existingAuction._id })
+        .sort({ bidAmount: -1 })
+        .populate("bidderId");
+
+      let winnerData = null;
+
+      if (highestBid && highestBid.bidderId) {
+        // ✅ Auction had a winner
+        winnerData = {
+          bidder: highestBid.bidderId,
+          amount: highestBid.bidAmount
+        };
+        existingAuction.status = "COMPLETED";
+        existingAuction.winner = highestBid.bidderId._id;
+        existingAuction.finalBid = highestBid.bidAmount;
+      } else {
+        // ❌ No valid bids → cancelled
+        existingAuction.status = "CANCELLED";
+        existingAuction.winner = null;
+        existingAuction.finalBid = existingAuction.currentBid;
+      }
+
+      await existingAuction.save();
+
+      // Emit event to clients
+      emitToUser(stream.streamId.toString(), "auctionEnded", {
+        auctionId: existingAuction._id,
+        status: existingAuction.status,
+        winner: winnerData
+      });
+    }
+
+    // -----------------------------
+    // 3️⃣ Create New Auction
+    // -----------------------------
+    const startTime = new Date();
     const endTime = new Date(startTime.getTime() + durationSeconds * 1000);
 
     const auction = new Auction({
       streamId,
       productId,
-      startingBid: Number(startingBid),
-      currentBid: Number(startingBid),
+      startingBid: bid,
+      currentBid: bid,
       bidIncrement: 1,
       startTime,
       endTime,
       suddenDeath: Boolean(suddenDeath),
-      status: "ACTIVE",
+      status: "ACTIVE"
     });
 
     await auction.save();
 
+    // Attach auction to stream
     stream.auctionIds = stream.auctionIds || [];
     stream.auctionIds.push(auction._id);
     await stream.save();
 
+    // Emit event for new auction
     emitToUser(stream.streamId.toString(), "auctionCreated", { auction });
 
-    return res.status(201).json({ data: auction, msg: "Auction created" });
+    // -----------------------------
+    // 4️⃣ Response
+    // -----------------------------
+    return res.status(201).json({
+      success: true,
+      data: auction,
+      msg: "Auction created successfully"
+    });
+
   } catch (error) {
-    console.error("createAuction error", error);
-    res.status(500).json({ error: error.message });
+    console.error("CREATE AUCTION ERROR:", error);
+    return res.status(500).json({ success: false, error: error.message });
   }
 };
+// const getAuctionsByStream = async (req, res) => {
+//   try {
+//     const { streamId } = req.params;
+//     console.log(streamId, 'stream id')
 
+//     const auctions = await Auction.find({ streamId }).populate("productId").populate("highestBidder");
+//     return res.status(200).json({ data: auctions, msg: "Auctions fetched" });
+//   } catch (error) {
+//     console.error("getAuctionsByStream error", error);
+//     console.log(error)
+//     res.status(500).json({ error: error.message });
+//   }
+// };
 const getAuctionsByStream = async (req, res) => {
   try {
     const { streamId } = req.params;
-    const auctions = await Auction.find({ streamId }).populate("productId").populate("highestBidder");
-    return res.status(200).json({ data: auctions, msg: "Auctions fetched" });
+    // console.log("Fetching auctions for streamId:", streamId);
+
+    if (!streamId) {
+      return res.status(400).json({ error: "streamId is required" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(streamId)) {
+      return res.status(400).json({ error: "Invalid streamId" });
+    }
+
+    const activeAuctions = await Auction.find({
+      streamId,
+      status: "ACTIVE"
+    })
+      .populate("productId")
+      .populate("highestBidder"); // make sure this field exists
+
+    console.log("Active auctions fetched:", activeAuctions.length);
+
+    return res.status(200).json({
+      success: true,
+      data: activeAuctions,
+      msg: "Active auctions fetched"
+    });
   } catch (error) {
-    console.error("getAuctionsByStream error", error);
-    res.status(500).json({ error: error.message });
+    console.error("getAuctionsByStream error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Internal server error"
+    });
   }
 };
-
 const getAuctionById = async (req, res) => {
   try {
     const auction = await Auction.findById(req.params.id)
