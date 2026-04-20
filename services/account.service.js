@@ -170,7 +170,8 @@ const buyCoins = async (req, res) => {
         let { id } = req.params;
         let { dollars } = req.body
         let findUser = await AccountModel.findById(id)
-        let addCoins = await AccountModel.findByIdAndUpdate(id, { coins: findUser?.coins + dollars * 10 }, { new: true })
+        // let addCoins = await AccountModel.findByIdAndUpdate(id, { coins: findUser?.coins + dollars * 10 }, { new: true })
+          let addCoins = await AccountModel.findByIdAndUpdate(id, { coins: findUser?.coins + dollars  }, { new: true })
         await TransactionHistoryModel.create({ userId: id, amount: dollars })
         return res.status(200).json({ data: addCoins, msg: "Coins Buy Successfully" })
     }
