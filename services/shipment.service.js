@@ -63,7 +63,7 @@ const createShipment = async (req, res) => {
                 bidderId,
                 sellerId,
             });
-
+console.log("Existing shipment check:", existingShipment);
             if (existingShipment) {
                 return res.status(400).json({
                     status: 400,
@@ -91,7 +91,7 @@ const createShipment = async (req, res) => {
         });
 
         const savedShipment = await shipment.save();
-
+console.log("Shipment created:", savedShipment);
         // Populate references
         await savedShipment.populate([
             { path: "bidderId", select: "username email profile" },
