@@ -4,6 +4,7 @@ const { ProductModel } = require("../models/product.model");
 const LiveStream = require("../models/stream.model");
 
 const createShipment = async (req, res) => {
+    console.log("Create shipment request body:", req.body);
     try {
         const {
             streamId,

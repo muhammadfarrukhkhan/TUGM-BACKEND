@@ -39,7 +39,7 @@ const getOrderForSeller = async (req, res) => {
             .populate("userId")
             .populate("productId")
             .sort({ createdAt: -1 }); // 🕒 latest first
-
+        console.log(Order, 'Order');
         return res.status(200).json({ data: Order, msg: "", status: 200 });
     } catch (error) {
         console.error("Error fetching orders for seller:", error);
@@ -53,7 +53,7 @@ const getOrderForUser = async (req, res) => {
             .populate("sellerId")
             .populate("productId")
             .sort({ createdAt: -1 }); // 🕒 latest first
-
+        console.log(Order, 'User Order');
         return res.status(200).json({ data: Order, msg: "", status: 200 });
     } catch (error) {
         console.error("Error fetching orders for user:", error);
@@ -91,7 +91,9 @@ const markAsDelivered = async (req, res) => {
 const changeStatus = async (req, res) => {
     try {
         const Order = await OrderModel.findByIdAndUpdate(req?.params?.id, { status: req.body.status }, { new: true })
+        console.log(req.body.status, 'req.body.status');
         return res?.status(200).json({ data: Order })
+        console.log(Order, 'Order');
     }
     catch (error) {
         console.log(error)
@@ -101,7 +103,7 @@ const changeStatus = async (req, res) => {
 const cancelOrder = async (req, res) => {
     try {
         const order = await OrderModel.findById(req?.params?.id);
-
+console.log(order, 'order');
         if (!order) {
             return res.status(404).json({ msg: "Order not found", status: 404 });
         }
@@ -116,8 +118,9 @@ const cancelOrder = async (req, res) => {
 
         order.status = "cancelled";
         await order.save();
-
+console.log(order, 'cancelled order');
         return res.status(200).json({ data: order, msg: "Order cancelled successfully", status: 200 });
+    
     } catch (error) {
         console.error("Error cancelling order:", error);
         return res.status(500).json({ success: false, msg: "Failed to cancel order" });
@@ -127,7 +130,7 @@ const printLabel = async (req, res) => {
     try {
         let { id } = req.params;
         let order = await OrderModel.findById(id).populate("userId");
-
+console.log(order, 'order');
         const shipmentBody = {
             "carrier": "USPS",
             "service_key": "USPS Priority Mail, United States",
@@ -184,7 +187,7 @@ const printLabel = async (req, res) => {
             "api-secret": "ps_secret_0zNpGz9eHMBPbyCiZh7bVAFK4DVokCT5Xi1",
             "Content-Type": "application/json"
         };
-
+console.log("Shipment request body:", shipmentBody);
         const shipmentResponse = await axios.post(
             "https://ship.postmerica.com/apis/api/v1/create-shipment",
             shipmentBody,
