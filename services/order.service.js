@@ -82,6 +82,8 @@ const getSingleOrder = async (req, res) => {
 const markAsDelivered = async (req, res) => {
     try {
         const Order = await OrderModel.findByIdAndUpdate(req?.params?.id, { delivered: true, status: "delivered" }, { new: true })
+        console.log(Order, 'Order');
+        console.log(req?.params?.id, 'req?.params?.id');
         return res?.status(200).json({ data: Order })
     }
     catch (error) {
@@ -130,6 +132,7 @@ const printLabel = async (req, res) => {
     try {
         let { id } = req.params;
         let order = await OrderModel.findById(id).populate("userId");
+        console.log(id, 'id');
 console.log(order, 'order');
         const shipmentBody = {
             "carrier": "USPS",
